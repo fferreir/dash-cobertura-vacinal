@@ -5,13 +5,13 @@ import dash
 from  dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import numpy as np
-pd.set_option('future.no_silent_downcasting', True)
+#pd.set_option('future.no_silent_downcasting', True)
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUMEN, dbc.icons.FONT_AWESOME],)
-#server = app.server
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUMEN, dbc.icons.FONT_AWESOME],requests_pathname_prefix='/cobertura_vacinal/')
+server = app.server
 
 cabecalho = html.H1("Coberturas Vacinais", className="bg-primary text-white p-2 mb-4")
-arquivo = './data/coberturas_2023.xlsx'
+arquivo = '/var/www/aplicacoes/dash-cobertura-vacinal/data/coberturas_2023.xlsx'
 ano = arquivo[-9:-5]
 coberturas = pd.read_excel(arquivo)
 coberturas.reset_index(inplace=True)
@@ -32,7 +32,7 @@ coberturas.drop(['index',
                 axis=1,
                 inplace=True)
 
-municipios = gpd.read_file('./data/BR_Municipios_2022/BR_Municipios_2022_simp.shp', encoding='utf-8')
+municipios = gpd.read_file('/var/www/aplicacoes/dash-cobertura-vacinal/data/BR_Municipios_2022/BR_Municipios_2022_simp.shp', encoding='utf-8')
 municipios['CD_MUN_6'] = municipios['CD_MUN'].apply(lambda x: x[0:6])
 municipios_cobertura = municipios.merge(coberturas, how='left', left_on='CD_MUN_6', right_on='Código IBGE 6')
 municipios_cobertura.drop(['AREA_KM2', 'CD_MUN_6', 'UF Residência', 'Código IBGE 6', 'Nome município'], axis=1, inplace=True)
@@ -62,6 +62,18 @@ for imunogeno in imunogenos:
 
 municipios_cobertura.replace({-9999: None}, inplace=True)
 
+fig = px.choropleth(municipios_cobertura,
+                            geojson=municipios_cobertura.__geo_interface__,
+                            locations="CD_MUN",
+                            featureidkey="properties.CD_MUN",
+                            hover_name=municipios_cobertura["NM_MUN"],
+                            hover_data={"SIGLA_UF": True,  "CD_MUN": False},
+                            )
+fig.update_layout(map_style="white-bg")
+fig.update_geos(fitbounds="locations", visible=False)
+fig.update_traces(marker_line=dict(width=.5, color='#a1a1a1'))
+fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+
 @app.callback([Output('cobertura', 'figure'),
                ],[
               Input('imunogeno', 'value'),
@@ -71,7 +83,6 @@ municipios_cobertura.replace({-9999: None}, inplace=True)
 def gera_mapa(imunogeno, uf, municipio_uf):
     global ano, municipios_cobertura
     if not imunogeno:
-        print('Aqui2')
         fig = px.choropleth(municipios_cobertura,
                             geojson=municipios_cobertura.__geo_interface__,
                             locations="CD_MUN",
@@ -83,7 +94,6 @@ def gera_mapa(imunogeno, uf, municipio_uf):
         fig.update_geos(fitbounds="locations", visible=False)
         fig.update_traces(marker_line=dict(width=.5, color='#a1a1a1'))
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-        print('aqui3')
         return fig
     else:
         bins = [-np.inf, .79999, 0.89999, 0.94999, 1, +np.inf]
@@ -127,8 +137,7 @@ def gera_mapa(imunogeno, uf, municipio_uf):
         fig.update_layout(legend_title_text='Coberturas vacinais')
         fig.update_traces(marker_line=dict(width=.5, color='#a1a1a1'))
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
-        print('aqui1')
-        return fig
+        return [fig]
 
 seletor_imunogeno = html.Div([
     dbc.Label('Imunógeno', html_for="imunogeno"),
@@ -183,7 +192,7 @@ app.layout = dbc.Container([
                             html.P("Mapa", className="card-header border-dark mb-2"),
                             ]),
                         dbc.Row([
-                            dbc.Col(dcc.Graph(id='cobertura'), width=12),
+                            dbc.Col(dcc.Graph(id='cobertura', figure=fig), width=12),
                             ]),
                         ], fluid=True),
                     ], id='mapa_container', className="card border-dark mb-2"),
