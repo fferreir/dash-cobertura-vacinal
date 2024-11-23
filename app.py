@@ -134,7 +134,13 @@ def gera_mapa(imunogeno, uf, municipio_uf):
                             )
         fig.update_layout(map_style="white-bg")
         fig.update_geos(fitbounds="locations", visible=False)
-        fig.update_layout(legend_title_text='Coberturas vacinais')
+        fig.update_layout(legend=dict(
+            title_text="Coberturas vacinais",
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ))
         fig.update_traces(marker_line=dict(width=.5, color='#a1a1a1'))
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return [fig]
